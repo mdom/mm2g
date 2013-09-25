@@ -1,0 +1,170 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+use IO::Socket;
+use Getopt::Long;
+use Time::HiRes qw(sleep);
+use Pod::Usage;
+
+our $VERSION = '0.01';
+
+my %options = (
+    mode     => 'update',
+    port     => 2003,
+    host     => 'graphite',
+    interval => '-10m'
+);
+
+GetOptions(
+    \%options, 'skip=s', 'mode=s', 'debug!',
+    'host=s',  'port=i', 'interval=s', 'help|?',
+) or pod2usage(1);
+
+pod2usage(1) if $options{help};
+
+if ( $options{mode} !~ /^update|init$/ ) {
+	warn "Unknown mode: must be either update or init.\n";
+	pod2usage(1);
+}
+
+my $out;
+if ( $options{debug} ) {
+    $out = \*STDOUT;
+}
+else {
+    $out = IO::Socket::INET->new(
+        PeerHost => $options{host},
+        PeerPort => $options{port},
+        Proto    => 'tcp',
+    ) or die "ERROR in Socket Creation : $!\n";
+}
+
+for my $file (@ARGV) {
+
+    my $path = get_path($file);
+
+    if ( defined $options{skip} && $path =~ /$options{skip}/o ) {
+        warn "Skipped $path\n";
+        next;
+    }
+
+    my ( @command, $re, $sleep );
+    if ( $options{mode} eq 'init' ) {
+        $re      = qr{(\d+) --> <row><v>(.*)</v></row>};
+        @command = ( 'rrdtool', 'dump', $file );
+        $sleep   = 0.5;
+    }
+    else {
+        $re = qr/(\d+): (.*)/;
+        @command = ( 'rrdtool', 'fetch', $file, 'AVERAGE', '-s', $options{interval} );
+    }
+
+    open( my $dump, '-|', @command )
+      or die "Can't open @command: $!\n";
+
+    while (<$dump>) {
+        if (/$re/) {
+            my ( $time, $value ) = ( $1, $2 );
+            next if $value =~ /NaN/i;
+            printf {$out} "munin.$path %.10f %d\n", $value, $time;
+        }
+    }
+    sleep($sleep) if $sleep;
+}
+
+sub get_path {
+    my $file = shift;
+
+    my ( $file_base, $key, $type ) = $file =~ m{(.*/([^/]+))-(\w).rrd};
+    $key =~
+      /(?<hostname>[^.]+)\.(?<domain>[^-]+)-(?<plugin>[^-]+)-(?<field>.*)/;
+
+    my %types =
+      ( a => "absolute", g => "gauge", c => "counter", d => "derive" );
+
+    my ( $hostname, $domain, $plugin, $field ) =
+      @+{qw(hostname domain plugin field)};
+
+    my $path = "$domain-$hostname-$plugin-$field";
+
+    my @files = glob("$file_base-?.rrd");
+    if ( @files > 1 ) {
+        $path = "$path-$types{$type}";
+    }
+
+    for ($path) {
+        s/\./_/g;
+        s/-/./g;
+    }
+    return $path;
+}
+
+__END__
+
+=pod
+
+=head1 NAME
+
+mm2g - Export data from munin master to graphite
+
+=head1 SYNOPSIS
+
+  /usr/local/sbin/mm2g --skip '.+http_load_time\.' /var/lib/munin/*/*.rrd
+
+=head1 DESCRIPTION
+
+This programm reads you round robin databases and sends the data to
+graphite. This is helpfull if you have a running munin infrastructure and
+just want to use graphite to take a better look at the same data. You
+don't have to duplicate all your scripts or ask the same scripts for
+the same data twice.
+
+=head1 OPTIONS
+
+=over 4
+
+=item --host
+
+The host name or ip adress of our graphite host. Defaults to the hostname
+I<graphite>.
+
+=item --port
+
+The port on which carbon is listening for its plaintext protocol. Defaults
+to 2003.
+
+=item --mode init|update
+
+You can either export all your data to the graphite server by using
+I<init>, which can take a long time, or just send the newest data points
+via I<update> mode.
+
+Most users would run with I<--mode init> for the first time, and just
+use I<--mode update> via cron after that.
+
+Defaults to I<update>.
+
+=item --interval
+
+The start of the time series your want to send during I<--mode update>. A
+time in seconds since epoch, but you can also use AT-STYLE TIME
+SPECIFICATION as specified in I<man rrdfetch>. Default to I<-10m>. This
+value should probably be a little bigger than your update interval. So
+if your sending data every 5 minutes, the default should be a good
+compromise.
+
+=item --skip
+
+A regular expression matching all files in ARGV you want to skip.
+
+=item --debug
+
+Print the data to stdout instead of sending it to graphite.
+
+=back
+
+=head1 AUTHOR
+
+Mario Domgoergen E<lt>mario@domgoergen.comE<gt>
