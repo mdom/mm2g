@@ -115,8 +115,8 @@ mm2g - Export data from munin master to graphite
 
 =head1 DESCRIPTION
 
-This programm reads you round robin databases and sends the data to
-graphite. This is helpfull if you have a running munin infrastructure and
+This program reads you round robin databases and sends the data to
+graphite. This is helpful if you have a running munin infrastructure and
 just want to use graphite to take a better look at the same data. You
 don't have to duplicate all your scripts or ask the same scripts for
 the same data twice.
@@ -127,7 +127,7 @@ the same data twice.
 
 =item --host
 
-The host name or ip adress of our graphite host. Defaults to the hostname
+The host name or ip address of our graphite host. Defaults to the hostname
 I<graphite>.
 
 =item --port
