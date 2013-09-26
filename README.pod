@@ -1,0 +1,73 @@
+=pod
+
+=head1 NAME
+
+mm2g - Export data from munin master to graphite
+
+=head1 SYNOPSIS
+
+  /usr/local/sbin/mm2g --skip '.+http_load_time\.' /var/lib/munin/*/*.rrd
+
+=head1 DESCRIPTION
+
+This program reads you round robin databases and sends the data to
+graphite. This is helpful if you have a running munin infrastructure and
+just want to use graphite to take a better look at the same data. You
+don't have to duplicate all your scripts or ask the same scripts for
+the same data twice.
+
+=head1 OPTIONS
+
+=over 4
+
+=item --host
+
+The host name or ip address of our graphite host. Defaults to the hostname
+I<graphite>.
+
+=item --port
+
+The port on which carbon is listening for its plaintext protocol. Defaults
+to 2003.
+
+=item --mode init|update
+
+You can either export all your data to the graphite server by using
+I<init>, which can take a long time, or just send the newest data points
+via I<update> mode.
+
+Most users would run with I<--mode init> for the first time, and just
+use I<--mode update> via cron after that.
+
+Defaults to I<update>.
+
+=item --interval
+
+The start of the time series your want to send during I<--mode update>. A
+time in seconds since epoch, but you can also use AT-STYLE TIME
+SPECIFICATION as specified in I<man rrdfetch>. Default to I<-10m>. This
+value should probably be a little bigger than your update interval. So
+if your sending data every 5 minutes, the default should be a good
+compromise.
+
+=item --skip
+
+A regular expression matching all files in ARGV you want to skip.
+
+=item --debug
+
+Print the data to stdout instead of sending it to graphite.
+
+=back
+
+=head1 INSTALLATION
+
+To install this module, run the following commands:
+
+    perl Build.PL
+    ./Build
+    ./Build install
+
+=head1 AUTHOR
+
+Mario Domgoergen E<lt>mario@domgoergen.comE<gt>
