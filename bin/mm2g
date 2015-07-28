@@ -89,8 +89,8 @@ sub get_path {
 
     my $path = "$domain-$hostname-$plugin-$field";
 
-    my @files = glob("$file_base-?.rrd");
-    if ( @files > 1 ) {
+    my @files_with_type = grep { -e "$file_base-$_.rrd" } keys %types;
+    if ( @files_with_type > 1 ) {
         $path = "$path-$types{$type}";
     }
 
