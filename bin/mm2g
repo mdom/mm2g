@@ -18,15 +18,15 @@ my %options = (
 );
 
 GetOptions(
-    \%options, 'skip=s', 'mode=s', 'debug!',
+    \%options, 'skip=s', 'mode=s',     'debug!',
     'host=s',  'port=i', 'interval=s', 'help|?',
 ) or pod2usage(1);
 
 pod2usage(1) if $options{help};
 
 if ( $options{mode} !~ /^update|init$/ ) {
-	warn "Unknown mode: must be either update or init.\n";
-	pod2usage(1);
+    warn "Unknown mode: must be either update or init.\n";
+    pod2usage(1);
 }
 
 my $out;
@@ -58,7 +58,8 @@ for my $file (@ARGV) {
     }
     else {
         $re = qr/(\d+): (.*)/;
-        @command = ( 'rrdtool', 'fetch', $file, 'AVERAGE', '-s', $options{interval} );
+        @command =
+          ( 'rrdtool', 'fetch', $file, 'AVERAGE', '-s', $options{interval} );
     }
 
     open( my $dump, '-|', @command )
